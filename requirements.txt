@@ -1,0 +1,14 @@
+os
+re
+ast
+time
+json
+psutil
+random
+requests
+pyfiglet
+pyautogui
+python-dotenv
+beautifulsoup4
+seleniumbase
+pyshadow
