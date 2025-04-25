@@ -1,40 +1,18 @@
 import os
-import re
-import ast
 import time
-import json
 import psutil
-import random
 import requests
 import pyfiglet
-import pyautogui
 import os
-# from pyvirtualdisplay import Display
-# import Xlib.display
-# from pyshadow.main import Shadow
-# import pyautogui
 from dotenv import load_dotenv, set_key
-from bs4 import BeautifulSoup
-from seleniumbase import SB
 from seleniumbase import Driver
-# import undetected_chromedriver
-# from undetected_chromedriver import Chrome
 from selenium.webdriver.common.by import By
-from selenium.webdriver.common.keys import Keys
 from selenium.webdriver.support.ui import WebDriverWait
 from selenium.webdriver.support import expected_conditions as EC
-from selenium.webdriver.common.action_chains import ActionChains
 
 
 global url
 global session_id
-# global driver
-numerical_ip_address = "49.12.168.17"
-ip_address = "EverlasterSMP.falixsrv.me"
-server_port = "28294"
-server_ip_address = ip_address + ":" + server_port
-falix_email_address = "johnsmithencena@gmail.com"
-falix_password = "noqhoG-4vivhe-kuqwab"
 
 proxy_options = {
     'proxy': {
@@ -60,8 +38,8 @@ def check_initialization():
     print(f"Loading .env file from: {dotenv_path}")  # Debugging
     load_dotenv(dotenv_path)
     print("Checking environment variables...")
-    for key, value in os.environ.items():
-        print(f"{key}: {value}")
+    # for key, value in os.environ.items():
+    #     print(f"{key}: {value}")
     email = os.getenv("FALIX_EMAIL_ADDRESS")
     password = os.getenv("FALIX_PASSWORD")
     if not email:
@@ -102,6 +80,8 @@ def login_website(driver, email, password):
                 print("Email entered!")
             except Exception:
                 print("Email field not found, possibly due to CAPTCHA. Restarting login process...")
+                driver.quit()
+                driver = Driver(uc=True, headless=True)
                 continue 
             driver.find_element(By.ID, "password").send_keys(password)
             print("Password entered!")
@@ -117,6 +97,8 @@ def login_website(driver, email, password):
                     print("Login failed due to incorrect credentials.")
                 else:
                     print("Captcha found!")
+                    driver.quit()
+                    driver = Driver(uc=True, headless=True)
                 print("Login failed. Restarting the login process...")
                 continue 
             except:
@@ -135,25 +117,37 @@ def selecting_servers(driver):
     print("Waiting for server body...")
     try:
         found_servers_body = WebDriverWait(driver, 10).until(
-            EC.presence_of_element_located((By.CLASS_NAME, "card.mt-0"))
+            EC.presence_of_element_located((By.ID, "serverslist"))
         )
         print("Server body found!")
-        found_servers = found_servers_body.find_elements(By.CLASS_NAME, "col")
+        found_servers = found_servers_body.find_elements(By.CSS_SELECTOR, ".server-row")
+        print(f"Found {found_servers}")
         servers_string = ""  
-        server_dictionary = {}  
-        for index, col in enumerate(found_servers, start=1):
-            server_name, server_status = col.text.split('\n')[:2]
-            server_dictionary[index] = {"name": server_name, "status": server_status, 'element': col}
-            print(f"Found server: {server_name} -> {server_status}, {col}")
-            servers_string += f"{index}. {server_name}: {server_status}\n"
-        set_key(dotenv_path, "FALIX_SERVERS", str(server_dictionary))
-        load_dotenv(dotenv_path, override=True)
+        server_dictionary = {}
+        if len(found_servers) > 1:
+            for index, col in enumerate(found_servers, start=1):
+                print(col.find_element(By.CLASS_NAME, "server-name").text)
+                server_name = col.find_element(By.CLASS_NAME, "server-name").text
+                server_status = col.find_element(By.CLASS_NAME, "server-info server-domain").text
+                server_dictionary[index] = {"name": server_name, "status": server_status, 'element': col}
+                print(f"Found server: {server_name} -> {server_status}, {col}")
+                servers_string += f"{index}. {server_name}: {server_status}\n"
+            set_key(dotenv_path, "FALIX_SERVERS", str(server_dictionary))
+            load_dotenv(dotenv_path, override=True)
+        else:
+            server_name = found_servers[0].find_element(By.CLASS_NAME, "server-name").text
+            server_status = found_servers[0].find_element(By.CSS_SELECTOR, "div.server-info:nth-child(3)").text
+            server_dictionary[1] = {"name": server_name, "status": server_status, 'element': found_servers[0]}
+            print(f"Found server: {server_name} -> {server_status}, {found_servers}")
+            servers_string += f"1. {server_name}: {server_status}"
+            set_key(dotenv_path, "FALIX_SERVERS", str(server_dictionary))
+            load_dotenv(dotenv_path, override=True)
 
         res = os.environ["FALIX_SERVERS"]
         print("Server dictionary:")
         print(res)
 
-        falix_server = input(f"Which server would you like to upkeep automatically?\n{servers_string}").strip()
+        falix_server = input(f"Which server would you like to upkeep automatically?\n{servers_string}\n").strip()
 
         while not falix_server.isnumeric() or int(falix_server) not in server_dictionary:
             print("Please enter a valid number corresponding to the server you would like to keep running:")
@@ -209,20 +203,28 @@ def server_automation(current_driver, server_dictionary, falix_server_index, asc
         print(data)
         if data['online'] is False or data['version']['name_clean'] == '⬤ OFFLINE':
             if current_driver is None:
-                driver = Driver(uc=True, headless=False)
+                driver = Driver(uc=True, headless=True)
                 driver.set_page_load_timeout = 200
                 driver = login_website(driver, os.environ['FALIX_EMAIL_ADDRESS'], os.environ['FALIX_PASSWORD'])
             else:
+                print(asc_time)
                 driver = current_driver
-            print(asc_time)
-            time.sleep(5)
+            # time.sleep(5)
+
+            print("!@#$^Z&")
+
+            found_servers_body = WebDriverWait(driver, 10).until(
+                EC.presence_of_element_located((By.ID, "serverslist"))
+            )
+            found_servers = found_servers_body.find_elements(By.CSS_SELECTOR, ".server-row")[falix_server_index - 1]
+            # driver.click(found_servers[falix_server_index - 1])
             # try:
             #     driver.find_element(By.XPATH, "//div[@class='adngin-bottom_adhesive-close']//path").click()
             #     print("Clicked on ad button!")
             # except:
             #     print("No close button found, continuing...")
-            print("Clicking manage...")
-            manage_button = driver.find_elements(By.XPATH, "//form[@action='server/console']")[falix_server_index - 1]
+            # print("Clicking manage...")
+            # manage_button = driver.find_elements(By.XPATH, "//form[@action='server/console']")[falix_server_index - 1]
             # for server in manage_button:
             #     print(server.text)
             #     print(server.location_once_scrolled_into_view)
@@ -232,9 +234,9 @@ def server_automation(current_driver, server_dictionary, falix_server_index, asc
                 var yOffset = window.pageYOffset || document.documentElement.scrollTop;
                 var offset = -70; // Adjust this value to fine-tune positioning (negative for a small gap)
                 window.scrollTo({top: rect.top + yOffset + offset, behavior: 'smooth'});
-            """, manage_button)
+            """, found_servers)
             time.sleep(3)
-            manage_button.click()
+            found_servers.click()
             time.sleep(5)
             # manage_button = server_ip['element'].find_element(By.XPATH, "//form[@action='server/console']")
             # Scroll the element into view
@@ -391,6 +393,7 @@ def server_automation(current_driver, server_dictionary, falix_server_index, asc
         auto_fail = True
         driver.close()
         driver.quit()
+        driver = None
         # if check_chrome_instance():
         #     os.system("taskkill /f /im chrome.exe")
         # else:
@@ -419,22 +422,22 @@ def automation_schedule(a_status: bool, s_status: bool):
             #     pass
             print("Checking server status...")
             time.sleep(10)
-    except:
+    except KeyboardInterrupt:
+        print("Automation interrupted by user.")
+        exit()
+    finally:
         print("Something is going wrong here...")
 
 
 def main():
     """Main function to run the automation script."""
     print(pyfiglet.figlet_format("Welcome to the automation script!"))
-    print('?')
 
-    # Validate and load environment variables
     email, password = check_initialization()
 
-    driver = Driver(uc=True, headless=False)
+    driver = Driver(uc=True, headless=True)
     driver.set_page_load_timeout = 200
 
-    # Initialize login and server data
     driver = login_website(driver, email, password)
     driver, server_dictionary, server_data = selecting_servers(driver)
     # while True:
